@@ -148,24 +148,24 @@
 		1: hdmi
 		2: hdmi and lvds
     */
-		lvds_mode = <2>;
+		lvds_mode = <0>;
 		bit_color = <0> ;    // 0:24bit   1:18bit
-		hdmi_mode = <0>;     // 0: 1080P  1:720P
+		hdmi_mode = <1>;     // 0: 1080P  1:720P
 		audio_mode = <2>;     // 0:NONE   1: SPDIF 2: I2S
 
 		display-timings {
 			native-mode = <&timing0>;
 			timing0:timing0{
-					clock-frequency = <51200000>;
+					clock-frequency = <72400000>;
 
-					hactive = <1024>;
+					hactive = <1280>;
 					hsync-len = <20>;
-					hback-porch = <162>;
-					hfront-porch = <140>;
-					vactive = <600>;
-					vsync-len = <3>;
-					vback-porch = <20>;
-					vfront-porch = <12>;
+					hback-porch = <80>;
+					hfront-porch = <80>;
+					vactive = <800>;
+					vsync-len = <15>;
+					vback-porch = <14>;
+					vfront-porch = <9>;
 
 					vsync-active = <0>;
 					hsync-active =<0>;
