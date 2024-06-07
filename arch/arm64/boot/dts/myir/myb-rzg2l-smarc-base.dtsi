@@ -199,14 +199,20 @@
 			label = "user_key";
 		};
 	};
+	
+	codec_ext: max98357a@0 {
+		compatible = "maxim,max98357a";
+		#sound-dai-cells = <0>;
+	};
 
     sound_rzg2l: sound {
 		compatible = "simple-audio-card";
+		simple-audio-card,name = "max98357a";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,bitclock-master = <&cpu_dai>;
 		simple-audio-card,frame-master = <&cpu_dai>;
 		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,widgets =
+		/*simple-audio-card,widgets =
 				"Microphone", "Microphone Jack",
 				"Headphone", "Headphone Jack",
 				"Speaker", "Speaker Ext",
@@ -216,14 +222,15 @@
 				"Microphone Jack", "Mic Bias",
 				"LINE_IN", "Line In Jack",
 				"Headphone Jack", "HP_OUT",
-				"Speaker Ext", "LINE_OUT";
+				"Speaker Ext", "LINE_OUT";*/
 
 		cpu_dai: simple-audio-card,cpu {
 				sound-dai = <&ssi0>;
 		};
 		codec_dai: simple-audio-card,codec {
-				sound-dai = <&sgtl5000>;
+				/*sound-dai = <&sgtl5000>;*/
 				clocks = <&versa3 3>;
+				sound-dai=<&codec_ext>;
 		};
     };
 
@@ -727,7 +734,8 @@
 		VDDA-supply = <&reg_3p3v>;
 		VDDD-supply = <&reg_1p8v>;
 		clocks = <&clk_ext_audio>;
-	};
+		status="disabled";
+	};	
 
 };
 
@@ -762,6 +770,7 @@
 		clock-flags = <2176>, <2176>, <2176>, <2052>, <2176>, <2048>;
 	};
 };
+
 
 &audio_clk1{
 	clock-frequency = <11289600>;

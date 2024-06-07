@@ -48,11 +48,10 @@
 	};
 
 	sound_card {
-			compatible = "audio-graph-card";
+		//	compatible = "audio-graph-card";
 			//compatible = "simple-audio-card";
-			dais = <&i2s2_port0>;
+		//	dais = <&i2s2_port0>;
 	};
-
 
     hdmi-out {
             compatible = "hdmi-connector";
