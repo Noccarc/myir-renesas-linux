@@ -160,7 +160,7 @@
 &du {
 	pinctrl-0 = <&du_pins>;
 	pinctrl-names = "default";
-	status = "okay";
+	status = "disabled";
 
 	ports {
 		port@0 {
@@ -175,7 +175,7 @@
 	pinctrl-0 = <&i2c1_pins>;
 	pinctrl-names = "default";
 	clock-frequency = <100000>;
-	status = "okay";
+	status = "disabled";
 
     ft5x06: ft5x06@38 {
         compatible = "edt,edt-ft5406", "edt,edt-ft5x06";

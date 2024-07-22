@@ -795,8 +795,24 @@
 				     <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "lpm_int", "ca55stbydone_int",
 					  "cm33stbyr_int", "ca55_deny";
+			#power-domain-cells = <1>;  // Add this line
 			status = "disabled";
 		};
+
+		intc_ex: interrupt-controller@e61c0000 {
+			compatible = "renesas,intc-ex-r9a07g044", "renesas,irqc";
+			reg = <0x0 0xe61c0000 0x0 0x200>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+						<GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
+						<GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+						<GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 407>;
+			power-domains = <&sysc 0>;
+			resets = <&cpg 407>;
+		};
+
 
 		pinctrl: pin-controller@11030000 {
 			compatible = "renesas,r9a07g044-pinctrl";

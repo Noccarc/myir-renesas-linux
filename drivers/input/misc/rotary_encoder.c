@@ -22,7 +22,7 @@
 #include <linux/of.h>
 #include <linux/pm.h>
 #include <linux/property.h>
-
+#include <linux/irq.h>
 #define DRV_NAME "rotary-encoder"
 
 enum rotary_encoder_encoding {
@@ -192,6 +192,8 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 	unsigned int i;
 	int err;
 
+	dev_info(dev,"chahacha aa gye probe me\n");
+
 	encoder = devm_kzalloc(dev, sizeof(struct rotary_encoder), GFP_KERNEL);
 	if (!encoder)
 		return -ENOMEM;
@@ -290,6 +292,7 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 
 	for (i = 0; i < encoder->gpios->ndescs; ++i) {
 		encoder->irq[i] = gpiod_to_irq(encoder->gpios->desc[i]);
+		dev_info(dev, "rot: return of irq alloc %d",encoder->irq[i]);
 
 		err = devm_request_threaded_irq(dev, encoder->irq[i],
 				NULL, handler,
@@ -316,6 +319,9 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 
 	return 0;
 }
+
+
+
 
 static int __maybe_unused rotary_encoder_suspend(struct device *dev)
 {

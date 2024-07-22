@@ -199,7 +199,25 @@
 			label = "user_key";
 		};
 	};
-	
+
+	encoder {
+        compatible = "rotary-encoder";
+        pinctrl-0 = <&encoder_pins>;
+        pinctrl-names = "default";
+
+        rotary_a {
+            gpios = <&pinctrl RZG2L_GPIO(2, 0) GPIO_ACTIVE_LOW>;
+			interrupt-parent = <&gic>;
+            interrupts = <0 4 IRQ_TYPE_EDGE_BOTH>;
+        };
+
+        rotary_b {
+            gpios = <&pinctrl RZG2L_GPIO(2, 1) GPIO_ACTIVE_LOW>;
+			interrupt-parent = <&gic>;
+            interrupts = <1 5 IRQ_TYPE_EDGE_BOTH>;
+        };
+    };
+
 	codec_ext: max98357a@0 {
 		compatible = "maxim,max98357a";
 		#sound-dai-cells = <0>;
@@ -236,6 +254,16 @@
 
 };
 
+&gic {
+    #interrupt-cells = <3>;
+    interrupt-controller;
+    compatible = "arm,gic-v3";
+    reg = <0x0 0x11900000 0 0x40000>,
+          <0x0 0x11940000 0 0x60000>;
+    interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_LOW>;
+    status = "okay";
+};
+
 &adc {
 	pinctrl-0 = <&adc_pins>;
 	pinctrl-names = "default";
@@ -245,7 +273,7 @@
 &canfd {
         pinctrl-0 = <&canfd1_pins>;
         pinctrl-names = "default";
-        status = "okay";
+        status = "disabled";
 
         channel0 {
                 status = "disabled";
@@ -261,7 +289,7 @@
 	pinctrl-names = "default";
 	phy-handle = <&phy0>;
 	phy-mode = "rgmii-id";
-	status = "okay";
+	status = "disabled";
 
 	phy0: ethernet-phy@4 {
 		reg = <4>;
@@ -288,7 +316,7 @@
 	pinctrl-names = "default";
 	phy-handle = <&phy1>;
 	phy-mode = "rgmii-id";
-	status = "okay";
+	status = "disabled";
 
 	phy1: ethernet-phy@6 {
 		reg = <6>;
@@ -327,6 +355,14 @@
 };
 
 &pinctrl {
+
+	encoder_pins: encoder_pins {
+        pinmux = <
+            RZG2L_PORT_PINMUX(2, 0, 1)   /* IRQ0 */
+            RZG2L_PORT_PINMUX(2, 1, 1)   /* IRQ1 */
+        >;
+        bias-pull-up;
+    };
 
 	i2c0_pins: i2c0 {
 			pins = "RIIC0_SDA", "RIIC0_SCL";
@@ -504,6 +540,7 @@
         gpt4_pins: gpt4 {
                 pinmux = <RZG2L_PORT_PINMUX(43, 0, 2)>; /* Channel A */
         };
+	
 };
 
 &sbc {
@@ -603,11 +640,13 @@
 };
 
 &gpt4 {
-        pinctrl-0 = <&gpt4_pins>;
+    pinctrl-0 = <&gpt4_pins>;
 	pinctrl-names = "default";
 	channel = "channel_A";
 	status = "okay";
 };
+
+
 
 &usb2_phy1 {
         pinctrl-0 = <&usb1_pins>;
@@ -652,7 +691,7 @@
 
 
 &csi2 {
-	status = "okay";
+	status = "disabled";
 	ports {
 		port {
 			csi2_in: endpoint {
@@ -692,7 +731,7 @@
 	ov5640: camera@3c {
 		compatible = "ovti,ov5640";
 		reg = <0x3c>;
-		status = "okay";
+		status = "disabled";
 
 		clocks = <&clk_ext_camera>;
 		clock-names = "xclk";
@@ -719,7 +758,7 @@
 	pinctrl-0 = <&i2c1_pins>;
 	pinctrl-names = "default";
 	clock-frequency = <100000>;
-	status = "okay";
+	status = "disabled";
 
     rx8025t: rx8025t@32 {
 		compatible = "epson,rx8025t";
@@ -798,20 +837,20 @@
 &scif1 {
 	pinctrl-0 = <&scif1_pins>;
 	pinctrl-names = "default";
-	status = "okay";
+	status = "disabled";
 };
 
 &scif2 {
         pinctrl-0 = <&scif2_pins>;
         pinctrl-names = "default";
-        status = "okay";
+        status = "disabled";
 };
 
 /* RS232 */
 &scif3 {
         pinctrl-0 = <&scif3_pins>;
         pinctrl-names = "default";
-        status = "okay";
+        status = "disabled";
 };
 
 &hsusb {
@@ -823,7 +862,7 @@
 };
 
 &mtu3 {
-        status = "okay";
+        status = "disabled";
 };
 
 &cru {
@@ -833,7 +872,7 @@
 &spi0 {
         pinctrl-0 = <&spi0_pins>;
         pinctrl-names = "default";
-        status = "okay";
+        status = "disabled";
 
         spidev@0{
 			#address-cellss=<1>;
