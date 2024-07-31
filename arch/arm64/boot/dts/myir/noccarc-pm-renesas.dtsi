@@ -151,13 +151,6 @@
 		clock-frequency = <11289600>;
 	};
 
-	clk_ext_camera: clk_ext_camera {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <24000000>;
-	};
-
-
 	codec_ext: max98357a@0 {
 		compatible = "maxim,max98357a";
 		#sound-dai-cells = <0>;
@@ -223,13 +216,13 @@
         gpio5 {
 			gpios = <&pinctrl RZG2L_GPIO(2, 1) GPIO_ACTIVE_HIGH>;  // 127
 			label = "wifi_enable";
-			default-state = "off";
+			default-state = "on";
 			linux,default-trigger = "none";
 		};
         gpio6 {
 			gpios = <&pinctrl RZG2L_GPIO(2, 0) GPIO_ACTIVE_HIGH>; // 128
 			label = "bt_enable";
-			default-state = "off";
+			default-state = "on";
 			linux,default-trigger = "none";
 		};
         gpio7 {
@@ -241,7 +234,7 @@
         gpio8 {
 			gpios = <&pinctrl RZG2L_GPIO(44, 1) GPIO_ACTIVE_HIGH>;  //116
 			label = "audio_enable";
-			default-state = "off";
+			default-state = "on";
 			linux,default-trigger = "none";
 		};
         gpio9 {
@@ -260,7 +253,7 @@
 		gpio11 {
 			gpios = <&pinctrl RZG2L_GPIO(33, 1) GPIO_ACTIVE_HIGH>;  //34
 			label = "usb_hub_enable";
-			default-state = "off";
+			default-state = "on";
 			linux,default-trigger = "none";
 		};
 	};
@@ -271,7 +264,7 @@
 		sw-1 {
 			interrupt-parent = <&pinctrl>;
 			interrupts = <RZG2L_GPIO(20, 1) IRQ_TYPE_EDGE_FALLING>; //12
-			linux,code = <KEY_POWER>;
+			linux,code = <KEY_0>;
 			label = "power";
 		};
         sw-2 {
@@ -317,10 +310,47 @@
 		cpu_dai: simple-audio-card,cpu {
 				sound-dai = <&ssi0>;
 		};
+
+		codec_dai: simple-audio-card,codec {
+            /* sound-dai = <&sgtl5000>; */
+            /*clocks = <&versa3 3>;*/
+            sound-dai = <&codec_ext>;
+        };
+		
     };
 
+	panel {
+			compatible = "boe,nv101wxmn51";
+			backlight = <&panel_backlight>;
+			reset-gpios = <&pinctrl RZG2L_GPIO(36, 0) GPIO_ACTIVE_HIGH>;
+			power-supply = <&reg_3p3v>;
+			status = "okay";
+			port {
+				panel_in: endpoint {
+					remote-endpoint = <&bridge_out>;
+				};
+			};
+		};
+
+		panel_backlight: panel-backlight {
+			compatible = "pwm-backlight";
+			pwms = <&gpt5 0 500000>;	//2KHz backlit frequency
+			enable-gpios = <&pinctrl RZG2L_GPIO(48, 2) GPIO_ACTIVE_HIGH>;
+			brightness-levels = <0 2048>;
+			num-interpolated-steps = <2048>;
+			default-brightness-level = <1000>;
+			status = "okay";
+		};
 
 
+
+};
+
+&gpt5 {
+    pinctrl-0 = <&gpt5_pins>;
+	pinctrl-names = "default";
+	channel = "channel_B";
+	status = "okay";
 };
 
 &adc {
@@ -447,6 +477,9 @@
 			pinmux = <RZG2L_PORT_PINMUX(48, 0, 1)>, /* TxD */
 						<RZG2L_PORT_PINMUX(48, 1, 1)>;/* RxD */
 	};
+	 gpt5_pins: gpt5 {
+                pinmux = <RZG2L_PORT_PINMUX(43, 3, 2)>; /* Channel B */
+        };
 
 
 
@@ -545,6 +578,17 @@
 	timeout-sec = <60>;
 };
 
+&dsi0 {
+	status = "okay";
+	ports {
+		port@1 {
+			dsi_out: endpoint {
+				remote-endpoint = <&bridge_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
 
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
@@ -552,6 +596,32 @@
 
 	clock-frequency = <100000>;
 	status = "okay";
+	bridge@2c {
+			compatible = "ti,sn65dsi83";
+			status = "okay";
+			reg = <0x2c>;
+			vdd-supply = <&reg_3p3v>;
+			vcc-supply = <&reg_3p3v>;
+			// Reset pin addition pending @deepak
+			enable-gpios = <&pinctrl RZG2L_GPIO(42, 3) GPIO_ACTIVE_LOW>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@0 {
+					reg = <0>;
+					bridge_in: endpoint {
+						remote-endpoint = <&dsi_out>;
+					};
+				};
+				port@1 {
+					reg = <1>;
+					bridge_out: endpoint {
+					   remote-endpoint = <&panel_in>;
+					};
+				};
+			};
+
+	};
 
 };
 
@@ -569,6 +639,18 @@
             touchscreen-size-x=<800>;
             touchscreen-size-y=<480>;
     };
+	//for RTC 
+	pcf85063: rtc@51 {
+		compatible = "nxp,pcf85063";
+		reg = <0x51>;
+		quartz-load-femtofarads = <12500>;
+
+			clock {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-frequency = <32768>;
+			};
+};
 
 
 
@@ -584,9 +666,10 @@
 
 &ssi0 {
 	pinctrl-0 = <&ssi0_pins>;
-	pinctrl-0 = <&ssi0_pins &sound_clk_pins>;
+	//pinctrl-0 = <&ssi0_pins &sound_clk_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+	
 };
 
 /* console */

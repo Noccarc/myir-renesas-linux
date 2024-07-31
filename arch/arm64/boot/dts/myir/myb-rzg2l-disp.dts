@@ -6,7 +6,7 @@
  */
 
 /dts-v1/;
-#include "myb-rzg2l-smarc-base.dtsi"
+#include "noccarc-pm-renesas.dtsi"
 
 / {
 
