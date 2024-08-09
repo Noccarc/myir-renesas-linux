@@ -231,8 +231,8 @@ static int ili251x_read_touch_data(struct i2c_client *client, u8 *data)
 	if (!error && data[0] == 2) {
 		error = i2c_master_recv(client, data + ILI251X_DATA_SIZE1,
 					ILI251X_DATA_SIZE2);
-		if (error >= 0 && error != ILI251X_DATA_SIZE2)
-			error = -EIO;
+		if (error >= 0)
+			error = error == ILI251X_DATA_SIZE2 ? 0 : -EIO;
 	}
 
 	return error;
@@ -252,7 +252,7 @@ static bool ili251x_touchdata_to_coords(const u8 *touchdata,
 	*x = val & 0x3fff;
 	*y = get_unaligned_be16(touchdata + 1 + (finger * 5) + 2);
 	*z = touchdata[1 + (finger * 5) + 4];
-
+	
 	return true;
 }
 
@@ -420,9 +420,9 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 		if (error)
 			return error;
 
-		usleep_range(50, 100);
+		usleep_range(12000, 15000);
 		gpiod_set_value_cansleep(reset_gpio, 0);
-		msleep(100);
+		msleep(160);
 	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -443,10 +443,31 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 	input->name = "ILI210x Touchscreen";
 	input->id.bustype = BUS_I2C;
 
+	/* Get panel data @deepak pansari*/
+	u16 resx, resy;
+	u16 resx_mapped ,resy_mapped;
+	u8 rs[10];
+
+	/* The firmware update blob might have changed the resolution. */
+	error = ili251x_read_reg(client, REG_PANEL_INFO, &rs, sizeof(rs));
+	if (!error) {
+		resx = le16_to_cpup((__le16 *)rs);
+		resy = le16_to_cpup((__le16 *)(rs + 2));
+
+		/* The value reported by the firmware is invalid. */
+		if (!resx || resx == 0xffff || !resy || resy == 0xffff) error = -EINVAL;
+		else{
+			dev_warn(dev, "Invalid resolution reported by controller.\n");
+			resx = 9600;
+			resy = 9600;
+		}
+	}
+
 	/* Multi touch */
-	max_xy = (chip->resolution ?: SZ_64K) - 1;
-	input_set_abs_params(input, ABS_MT_POSITION_X, 0, max_xy, 0, 0);
-	input_set_abs_params(input, ABS_MT_POSITION_Y, 0, max_xy, 0, 0);
+	input_set_abs_params(input, ABS_MT_POSITION_X, 0, resx-1, 0, 0);
+	input_set_abs_params(input, ABS_MT_POSITION_Y, 0, resy-1, 0, 0);
+	input_set_abs_params(input, ABS_X, 0, resx-1, 0, 0);
+	input_set_abs_params(input, ABS_Y, 0, resy-1, 0, 0);
 	if (priv->chip->has_pressure_reg)
 		input_set_abs_params(input, ABS_MT_PRESSURE, 0, 0xa, 0, 0);
 	touchscreen_parse_properties(input, true, &priv->prop);

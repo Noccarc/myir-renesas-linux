@@ -28,9 +28,14 @@
 #include <drm/drm_of.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_print.h>
+#include <video/mipi_display.h>
+#include <linux/dma-mapping.h>
 
 #include "rzg2l_mipi_dsi_regs.h"
 #include "rzg2l_mipi_dsi.h"
+
+#define RZ_G2L_MIPI_DSI_MAX_DATA_LANES	4
+#define DCS_BUF_SIZE			128
 
 struct rzg2l_mipi_dsi {
 	struct device *dev;
@@ -63,13 +68,15 @@ struct rzg2l_mipi_dsi {
 	} rstc;
 
 	enum mipi_dsi_pixel_format format;
-	unsigned int num_data_lanes;
 	unsigned int lanes;
 	unsigned long mode_flags;
 
 	unsigned long hsfreq;
 
 	bool hsclkmode;	/* 0 for non-continuous and 1 for continuous clock mode */
+
+	dma_addr_t dcs_buf_phys;
+	u8 *dcs_buf_virt;
 };
 
 #define bridge_to_rzg2l_mipi_dsi(b) \
@@ -95,6 +102,8 @@ static void rzg2l_mipi_dsi_clr(void __iomem *mem, u32 reg, u32 clr)
 {
 	rzg2l_mipi_dsi_write(mem, reg, rzg2l_mipi_dsi_read(mem, reg) & ~clr);
 }
+
+static int rzg2l_mipi_dsi_find_panel_or_bridge(struct rzg2l_mipi_dsi *mipi_dsi);
 
 /* -----------------------------------------------------------------------------
  * Hardware Setup
@@ -559,6 +568,10 @@ static int rzg2l_mipi_dsi_attach(struct drm_bridge *bridge,
 	struct drm_encoder *encoder = bridge->encoder;
 	int ret;
 
+	ret = rzg2l_mipi_dsi_find_panel_or_bridge(mipi_dsi);
+	if (ret < 0)
+		return ret;
+
 	/* If we have a next bridge just attach it. */
 	if (mipi_dsi->next_bridge)
 		return drm_bridge_attach(bridge->encoder,
@@ -608,18 +621,42 @@ static void rzg2l_mipi_dsi_enable(struct drm_bridge *bridge)
 
 	rzg2l_mipi_dsi_set_display_timing(mipi_dsi);
 
+	if (mipi_dsi->panel) {
+		/*
+		 * Workaround
+		 * Each MIPI DSI panel has a different powering up flow
+		 * to transmit DCS command.
+		 * Some needs to enable highspeed clock, some in LP state.
+		 * To ensure all panels can work normally, we will try to
+		 * setup panels twice.
+		 * If failed in 1st time with LP state, enable hsclk then retry.
+		 */
+		ret = drm_panel_prepare(mipi_dsi->panel);
+		ret |= drm_panel_enable(mipi_dsi->panel);
+		if (ret < 0) {
+			ret = rzg2l_mipi_dsi_start_hs_clock(mipi_dsi);
+			if (ret < 0)
+				return;
+
+			ret = drm_panel_prepare(mipi_dsi->panel);
+			if (ret < 0)
+				return;
+
+			ret = drm_panel_enable(mipi_dsi->panel);
+			if (ret < 0)
+				return;
+
+			goto start_video;
+		}
+	}
+
 	ret = rzg2l_mipi_dsi_start_hs_clock(mipi_dsi);
 	if (ret < 0)
 		return;
-
+start_video:
 	ret = rzg2l_mipi_dsi_start_video(mipi_dsi);
 	if (ret < 0)
 		return;
-
-	if (mipi_dsi->panel) {
-		drm_panel_prepare(mipi_dsi->panel);
-		drm_panel_enable(mipi_dsi->panel);
-	}
 }
 
 static void rzg2l_mipi_dsi_disable(struct drm_bridge *bridge)
@@ -627,14 +664,14 @@ static void rzg2l_mipi_dsi_disable(struct drm_bridge *bridge)
 	struct rzg2l_mipi_dsi *mipi_dsi = bridge_to_rzg2l_mipi_dsi(bridge);
 	int ret;
 
+	ret = rzg2l_mipi_dsi_stop_video(mipi_dsi);
+	if (ret < 0)
+		return;
+
 	if (mipi_dsi->panel) {
 		drm_panel_disable(mipi_dsi->panel);
 		drm_panel_unprepare(mipi_dsi->panel);
 	}
-
-	ret = rzg2l_mipi_dsi_stop_video(mipi_dsi);
-	if (ret < 0)
-		return;
 
 	ret = rzg2l_mipi_dsi_stop_hs_clock(mipi_dsi);
 	if (ret < 0)
@@ -646,7 +683,15 @@ rzg2l_mipi_dsi_bridge_mode_valid(struct drm_bridge *bridge,
 				 const struct drm_display_info *info,
 				 const struct drm_display_mode *mode)
 {
+	struct rzg2l_mipi_dsi *mipi_dsi = bridge_to_rzg2l_mipi_dsi(bridge);
+
 	if (mode->clock > 148500)
+		return MODE_CLOCK_HIGH;
+
+	if ((mipi_dsi->lanes == 2) && (mode->clock > 125000))
+		return MODE_CLOCK_HIGH;
+
+	if ((mipi_dsi->lanes == 1) && (mode->clock > 40000))
 		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;
@@ -699,6 +744,10 @@ int rzg2l_mipi_dsi_clk_enable(struct drm_bridge *bridge)
 	if (ret < 0)
 		return ret;
 
+	ret = clk_prepare_enable(mipi_dsi->clocks.lpclk);
+	if (ret < 0)
+		return ret;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rzg2l_mipi_dsi_clk_enable);
@@ -712,6 +761,7 @@ void rzg2l_mipi_dsi_clk_disable(struct drm_bridge *bridge)
 	clk_disable_unprepare(mipi_dsi->clocks.aclk);
 	clk_disable_unprepare(mipi_dsi->clocks.pclk);
 	clk_disable_unprepare(mipi_dsi->clocks.vclk);
+	clk_disable_unprepare(mipi_dsi->clocks.lpclk);
 
 	reset_control_assert(mipi_dsi->rstc.cmn_rstb);
 	reset_control_assert(mipi_dsi->rstc.areset_n);
@@ -723,12 +773,26 @@ EXPORT_SYMBOL_GPL(rzg2l_mipi_dsi_clk_disable);
  * Host setting
  */
 
+int rzg2l_mipi_dsi_get_data_lanes(struct drm_bridge *bridge)
+{
+	struct rzg2l_mipi_dsi *mipi_dsi = bridge_to_rzg2l_mipi_dsi(bridge);
+
+	return mipi_dsi->lanes;
+}
+
+int rzg2l_mipi_dsi_get_bpp(struct drm_bridge *bridge)
+{
+	struct rzg2l_mipi_dsi *mipi_dsi = bridge_to_rzg2l_mipi_dsi(bridge);
+
+	return mipi_dsi_pixel_format_to_bpp(mipi_dsi->format);
+}
+
 static int rzg2l_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 				      struct mipi_dsi_device *device)
 {
 	struct rzg2l_mipi_dsi *mipi_dsi = host_to_rzg2l_mipi_dsi(host);
 
-	if (device->lanes > mipi_dsi->num_data_lanes)
+	if (device->lanes > RZ_G2L_MIPI_DSI_MAX_DATA_LANES)
 		return -EINVAL;
 
 	mipi_dsi->lanes = device->lanes;
@@ -744,24 +808,218 @@ static int rzg2l_mipi_dsi_host_detach(struct mipi_dsi_host *host,
 	return 0;
 }
 
+/* Based on MIPI Alliance Specification for DSI */
+static const char * const error_report[16] = {
+	"SoT Error",
+	"SoT Sync Error",
+	"EoT Sync Error",
+	"Escape Mode Entry Command Error",
+	"Low-Power Transmit Sync Error",
+	"Peripheral Timeout Error",
+	"False Control Error",
+	"Contention Detected",
+	"ECC Error, single-bit",
+	"ECC Error, multi-bit",
+	"Checksum Error",
+	"DSI Data Type Not Recognized",
+	"DSI VC ID Invalid",
+	"Invalid Transmission Length",
+	"Reserved",
+	"DSI Protocol Violation",
+};
+
+static ssize_t rzg2l_mipi_dsi_host_transfer(struct mipi_dsi_host *host,
+					    const struct mipi_dsi_msg *msg)
+{
+	struct rzg2l_mipi_dsi *mipi_dsi = host_to_rzg2l_mipi_dsi(host);
+	struct mipi_dsi_packet packet;
+	bool is_long = mipi_dsi_packet_format_is_long(msg->type);
+	bool is_need_bta = false;
+	ssize_t err = 0;
+	u32 sqch0dsc00ar = 0;
+	u32 sqch0dsc00br = 0;
+	u32 status;
+	unsigned int timeout;
+	unsigned int i;
+
+	err = mipi_dsi_create_packet(&packet, msg);
+	if (err < 0)
+		return err;
+
+	if ((packet.payload_length > DCS_BUF_SIZE) || (msg->rx_len > DCS_BUF_SIZE)) {
+		dev_err(mipi_dsi->dev, "Packet payload too large");
+		return -ENOSPC;
+	}
+
+	if ((msg->flags & MIPI_DSI_MSG_REQ_ACK) ||
+	   ((msg->type & MIPI_DSI_GENERIC_READ_REQUEST_0_PARAM ||
+	     msg->type & MIPI_DSI_GENERIC_READ_REQUEST_1_PARAM ||
+	     msg->type & MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM ||
+	     msg->type & MIPI_DSI_DCS_READ) &&
+	    (msg->rx_buf && msg->rx_len > 0)))
+		is_need_bta = true;
+	else
+		sqch0dsc00ar = SQCH0DSC00AR_BTA_NO_BTA;
+
+	/* Terminate Operation after this descriptor finished */
+	sqch0dsc00ar |= SQCH0DSC00AR_NXACT_TERM;
+
+	/* High speed transmission */
+	if (msg->flags & MIPI_DSI_MSG_USE_LPM)
+		sqch0dsc00ar |= SQCH0DSC00AR_SPD_LOW;
+	else
+		sqch0dsc00ar |= SQCH0DSC00AR_SPD_HIGH;
+
+	/* Write TX Packet Header */
+	sqch0dsc00ar |= (SQCH0DSC00AR_VC_DT(packet.header[0]) |
+			 SQCH0DSC00AR_DATA0(packet.header[1]) |
+			 SQCH0DSC00AR_DATA1(packet.header[2]));
+
+	/* Sending non-read packets */
+	if (is_long) {
+		/* Long packet transmission */
+		sqch0dsc00ar |= SQCH0DSC00AR_FMT_LONG;
+
+		/* Copy TX Packet Payload Data */
+		memcpy(mipi_dsi->dcs_buf_virt, packet.payload, packet.payload_length);
+
+		/* Set memory area address */
+		rzg2l_mipi_dsi_write(mipi_dsi->link_mmio, SQCH0DSC00DR, (u32) mipi_dsi->dcs_buf_phys);
+
+	} else {
+		/* Short packet transmission */
+		sqch0dsc00ar |= SQCH0DSC00AR_FMT_SHORT;
+	}
+
+	if (is_need_bta) {
+		if (msg->flags & MIPI_DSI_MSG_REQ_ACK)
+			sqch0dsc00ar |= SQCH0DSC00AR_BTA_NON_READ_BTA;
+		else
+			sqch0dsc00ar |= SQCH0DSC00AR_BTA_READ_BTA;
+
+	}
+
+	rzg2l_mipi_dsi_write(mipi_dsi->link_mmio, SQCH0DSC00AR, sqch0dsc00ar);
+
+	/* Packet Payload Data memory space is used */
+	sqch0dsc00br = SQCH0DSC00BR_DTSEL_MEM_SPACE;
+	rzg2l_mipi_dsi_write(mipi_dsi->link_mmio, SQCH0DSC00BR, sqch0dsc00br);
+
+	/* Indicate rx result save slot number 0 */
+	rzg2l_mipi_dsi_write(mipi_dsi->link_mmio, SQCH0DSC00CR,
+						  SQCH0DSC00CR_FINACT);
+	/* Start Sequence 0 Operation */
+	rzg2l_mipi_dsi_write(mipi_dsi->link_mmio, SQCH0SET0R,
+			rzg2l_mipi_dsi_read(mipi_dsi->link_mmio, SQCH0SET0R) |
+			SQCH0SET0R_START);
+
+	for (timeout = 10; timeout > 0; --timeout) {
+		status = rzg2l_mipi_dsi_read(mipi_dsi->link_mmio, SQCH0SR);
+		if (status & SQCH0SR_ADESFIN) {
+			/* Clear the status bit */
+			rzg2l_mipi_dsi_write(mipi_dsi->link_mmio, SQCH0SCR,
+					     SQCH0SCR_ADESFIN);
+
+			break;
+		}
+
+		usleep_range(1000, 2000);
+	}
+
+	if (!timeout) {
+		err = -ETIMEDOUT;
+		goto stop_sequence;
+
+	}
+
+	err = packet.payload_length;
+
+	if (is_need_bta) {
+		u8 *msg_rx = msg->rx_buf;
+		size_t size = 0;
+		u32 datatype, errors;
+
+		status = rzg2l_mipi_dsi_read(mipi_dsi->link_mmio, RXRSS0R);
+		if (status & RXRSS0R_RXSUC) {
+			datatype = (status & RXRSS0R_DT) >> 16;
+
+			switch (datatype & 0x3f) {
+			case 0:
+				dev_dbg(mipi_dsi->dev, "ACK\n");
+				break;
+			case MIPI_DSI_RX_END_OF_TRANSMISSION:
+				dev_dbg(mipi_dsi->dev, "EoTp\n");
+				break;
+			case MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT:
+				errors = status & RXRSS0R_DATA;
+
+				dev_dbg(mipi_dsi->dev,
+					"Acknowledge and error report: %04x\n",
+					errors);
+
+				for (i = 0; i < ARRAY_SIZE(error_report); i++)
+					if (errors & BIT(i))
+						dev_dbg(mipi_dsi->dev,
+							"  %2u: %s\n",
+							i, error_report[i]);
+				break;
+			case MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_1BYTE:
+			case MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_1BYTE:
+				msg_rx[0] = (status & RXRSS0R_DATA0);
+				err = 1;
+				break;
+			case MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_2BYTE:
+			case MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_2BYTE:
+				msg_rx[0] = (status & RXRSS0R_DATA0);
+				msg_rx[1] = (status & RXRSS0R_DATA1) >> 8;
+				err = 2;
+				break;
+			case MIPI_DSI_RX_GENERIC_LONG_READ_RESPONSE:
+			case MIPI_DSI_RX_DCS_LONG_READ_RESPONSE:
+				size = (status & (RXRSS0R_DATA0 | RXRSS0R_DATA1));
+				/* Read RX Packet Payload Data */
+				memcpy(msg_rx, mipi_dsi->dcs_buf_virt, size);
+				break;
+			default:
+				dev_err(mipi_dsi->dev,
+					"unhandled response type: %02x\n",
+					datatype & 0x3f);
+
+				err = -EPROTO;
+				goto stop_sequence;
+			}
+		} else {
+			err = -EPROTO;
+			goto stop_sequence;
+		}
+	}
+
+stop_sequence:
+	/* Stop Sequence 0 Operation */
+	rzg2l_mipi_dsi_write(mipi_dsi->link_mmio, SQCH0SET0R,
+			rzg2l_mipi_dsi_read(mipi_dsi->link_mmio, SQCH0SET0R) &
+			(~SQCH0SET0R_START));
+
+	return err;
+}
+
 static const struct mipi_dsi_host_ops rzg2l_mipi_dsi_host_ops = {
 	.attach = rzg2l_mipi_dsi_host_attach,
 	.detach = rzg2l_mipi_dsi_host_detach,
+	.transfer = rzg2l_mipi_dsi_host_transfer,
 };
 
 /* -----------------------------------------------------------------------------
  * Probe & Remove
  */
-static int rzg2l_mipi_dsi_parse_dt(struct rzg2l_mipi_dsi *mipi_dsi)
+static int rzg2l_mipi_dsi_find_panel_or_bridge(struct rzg2l_mipi_dsi *mipi_dsi)
 {
 	struct device_node *local_output = NULL;
 	struct device_node *remote_input = NULL;
 	struct device_node *remote = NULL;
 	struct device_node *node;
-	struct property *prop;
 	bool is_bridge = false;
 	int ret = 0;
-	int len, num_lanes;
 
 	local_output = of_graph_get_endpoint_by_regs(mipi_dsi->dev->of_node,
 						     1, 0);
@@ -816,22 +1074,6 @@ static int rzg2l_mipi_dsi_parse_dt(struct rzg2l_mipi_dsi *mipi_dsi)
 			goto done;
 		}
 	}
-
-	prop = of_find_property(local_output, "data-lanes", &len);
-	if (!prop) {
-		mipi_dsi->num_data_lanes = 4;
-		dev_dbg(mipi_dsi->dev, "Using default data lanes\n");
-		goto done;
-	}
-
-	num_lanes = len / sizeof(u32);
-	if (num_lanes < 1 || num_lanes > 4) {
-		dev_err(mipi_dsi->dev, "data lanes definition is not correct\n");
-		ret = -EINVAL;
-		goto done;
-	}
-
-	mipi_dsi->num_data_lanes = num_lanes;
 
 done:
 	of_node_put(local_output);
@@ -925,10 +1167,6 @@ static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mipi_dsi);
 	mipi_dsi->dev = dev;
 
-	ret = rzg2l_mipi_dsi_parse_dt(mipi_dsi);
-	if (ret < 0)
-		return ret;
-
 	/* Init bridge */
 	mipi_dsi->bridge.driver_private = mipi_dsi;
 	mipi_dsi->bridge.funcs = &rzg2l_mipi_dsi_bridge_ops;
@@ -961,12 +1199,19 @@ static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 
 	drm_bridge_add(&mipi_dsi->bridge);
 
+	mipi_dsi->dcs_buf_virt = dma_alloc_coherent(mipi_dsi->host.dev,
+		DCS_BUF_SIZE,
+		&mipi_dsi->dcs_buf_phys,
+		GFP_KERNEL);
+
 	return 0;
 };
 
 static int rzg2l_mipi_dsi_remove(struct platform_device *pdev)
 {
 	struct rzg2l_mipi_dsi *mipi_dsi = platform_get_drvdata(pdev);
+
+	dma_free_coherent(mipi_dsi->host.dev, DCS_BUF_SIZE, mipi_dsi->dcs_buf_virt, mipi_dsi->dcs_buf_phys);
 
 	drm_bridge_remove(&mipi_dsi->bridge);
 

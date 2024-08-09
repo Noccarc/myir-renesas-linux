@@ -660,7 +660,7 @@ static void panel_simple_shutdown(struct device *dev)
 }
 
 static const struct drm_display_mode ampire_am_1280800n3tzqw_t00h_mode = {
-	.clock = 71100,
+	.clock = 72100,
 	.hdisplay = 1280,
 	.hsync_start = 1280 + 40,
 	.hsync_end = 1280 + 40 + 80,
@@ -964,26 +964,26 @@ static const struct panel_desc auo_g070vvn01 = {
 };
 
 static const struct drm_display_mode auo_g101evn010_mode = {
-	.clock = 68930,
+	.clock = 72000,
 	.hdisplay = 1280,
 	.hsync_start = 1280 + 82,
-	.hsync_end = 1280 + 82 + 2,
-	.htotal = 1280 + 82 + 2 + 84,
+	.hsync_end = 1280 + 82 + 12,
+	.htotal = 1280 + 82 + 12 + 84,
 	.vdisplay = 800,
-	.vsync_start = 800 + 8,
-	.vsync_end = 800 + 8 + 2,
-	.vtotal = 800 + 8 + 2 + 6,
+	.vsync_start = 800 + 18,
+	.vsync_end = 800 + 18 + 12,
+	.vtotal = 800 + 18 + 12 + 16,
 };
 
 static const struct panel_desc auo_g101evn010 = {
 	.modes = &auo_g101evn010_mode,
 	.num_modes = 1,
-	.bpc = 6,
+	.bpc = 8,
 	.size = {
 		.width = 216,
 		.height = 135,
 	},
-	.bus_format = MEDIA_BUS_FMT_RGB666_1X7X3_SPWG,
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA,
 	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 

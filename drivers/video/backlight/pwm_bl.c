@@ -429,8 +429,8 @@ static int pwm_backlight_initial_power_state(const struct pwm_bl_data *pb)
 	if (!regulator_is_enabled(pb->power_supply))
 		active = false;
 
-	if (!pwm_is_enabled(pb->pwm))
-		active = false;
+	/*if (!pwm_is_enabled(pb->pwm))
+		active = false;*/
 
 	/*
 	 * Synchronize the enable_gpio with the observed state of the

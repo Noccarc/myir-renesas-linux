@@ -585,7 +585,7 @@ static int ti_bridge_attach(struct drm_bridge *bridge,
 	ti->dsi = dsi;
 	dsi->lanes = ti->num_dsi_lanes;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO_BURST;   
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO; 
 	ret = mipi_dsi_attach(dsi);
 
 	if (ret < 0) {
