@@ -154,6 +154,7 @@
 	codec_ext: max98357a@0 {
 		compatible = "maxim,max98357a";
 		#sound-dai-cells = <0>;
+		sdmode-gpios= <&pinctrl RZG2L_GPIO(44, 1) GPIO_ACTIVE_HIGH>;
 	};
 
     	leds {
@@ -231,12 +232,12 @@
 			default-state = "off";
 			linux,default-trigger = "none";
 		};
-        gpio8 {
-			gpios = <&pinctrl RZG2L_GPIO(44, 1) GPIO_ACTIVE_HIGH>;  //116
-			label = "audio_enable";
-			default-state = "on";
-			linux,default-trigger = "none";
-		};
+        // gpio8 {
+		// 	gpios = <&pinctrl RZG2L_GPIO(44, 1) GPIO_ACTIVE_HIGH>;  //116
+		// 	label = "audio_enable";
+		// 	default-state = "on";
+		// 	linux,default-trigger = "none";
+		// };
         gpio9 {
 			gpios = <&pinctrl RZG2L_GPIO(47, 0) GPIO_ACTIVE_HIGH>;  //113
 			label = "mcu_sens_rst";
@@ -688,6 +689,8 @@
                 interrupt-parent = <&pinctrl>;
 				touchscreen-inverted-x;
 		 		touchscreen-inverted-y;
+				touchscreen-size-x = <1280>;
+				touchscreen-size-y = <800>;
                 interrupts = <RZG2L_GPIO(46, 2) IRQ_TYPE_EDGE_FALLING>;
                 reset-gpios = <&pinctrl RZG2L_GPIO(46, 3) GPIO_ACTIVE_LOW>;
 				max-fingers = <10>;
@@ -729,7 +732,7 @@
 
 &ssi0 {
 	pinctrl-0 = <&ssi0_pins>;
-	//pinctrl-0 = <&ssi0_pins &sound_clk_pins>;
+	pinctrl-0 = <&ssi0_pins &sound_clk_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 	
