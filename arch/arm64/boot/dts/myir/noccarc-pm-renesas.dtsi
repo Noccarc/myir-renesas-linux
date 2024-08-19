@@ -341,9 +341,6 @@
 		};
 	
 		panel_backlight: panel-backlight {
-			//compatible="gpio-backlight";
-			//gpios = <&pinctrl RZG2L_GPIO(48, 2) GPIO_ACTIVE_HIGH>;
-			//default-on;
 			 compatible = "pwm-backlight";
 			 pwms = <&gpt5 0 500000>;	//2KHz backlit frequency
 			 enable-gpios = <&pinctrl RZG2L_GPIO(48, 2) GPIO_ACTIVE_HIGH>;
