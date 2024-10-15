@@ -205,7 +205,7 @@
         gpio3 {
 			gpios = <&pinctrl RZG2L_GPIO(37, 1) GPIO_ACTIVE_HIGH>; // 25
 			label = "mpu_pwr_backup";
-			default-state = "off";
+			default-state = "on";
 			linux,default-trigger = "none";
 		};
         gpio4 {
@@ -232,12 +232,12 @@
 			default-state = "off";
 			linux,default-trigger = "none";
 		};
-        // gpio8 {
-		// 	gpios = <&pinctrl RZG2L_GPIO(44, 1) GPIO_ACTIVE_HIGH>;  //116
-		// 	label = "audio_enable";
-		// 	default-state = "on";
-		// 	linux,default-trigger = "none";
-		// };
+        gpio8 {
+			gpios = <&pinctrl RZG2L_GPIO(44, 1) GPIO_ACTIVE_HIGH>;  //116
+			label = "audio_enable";
+			default-state = "on";
+			linux,default-trigger = "none";
+		};
         gpio9 {
 			gpios = <&pinctrl RZG2L_GPIO(47, 0) GPIO_ACTIVE_HIGH>;  //113
 			label = "mcu_sens_rst";
@@ -330,7 +330,7 @@
 			compatible = "auo,g101evn010";
 			//compatible = "auo,b101aw03";
 			backlight = <&panel_backlight>;
-			reset-gpios = <&pinctrl RZG2L_GPIO(36, 0) GPIO_ACTIVE_HIGH>;
+			enable-gpios = <&pinctrl RZG2L_GPIO(36, 0) GPIO_ACTIVE_HIGH>;
 			power-supply = <&reg_3p3v>;
 			status = "okay";
 			port {
@@ -509,7 +509,7 @@
 &sbc {
 	pinctrl-0 = <&qspi0_pins>;
 	pinctrl-names = "default";
-	status = "okay";
+	status = "disabled";
 
 	flash@0 {
 		compatible = "micron,mt25qu512a", "jedec,spi-nor";
@@ -684,8 +684,8 @@
                 compatible = "ilitek,ili251x";
                 reg = <0x41>;
                 interrupt-parent = <&pinctrl>;
-				touchscreen-inverted-x;
-		 		touchscreen-inverted-y;
+				//touchscreen-inverted-x;
+		 		//touchscreen-inverted-y;
 				touchscreen-size-x = <1280>;
 				touchscreen-size-y = <800>;
                 interrupts = <RZG2L_GPIO(46, 2) IRQ_TYPE_EDGE_FALLING>;

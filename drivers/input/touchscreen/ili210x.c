@@ -253,7 +253,7 @@ static bool ili251x_touchdata_to_coords(const u8 *touchdata,
 	*x = val & 0x3fff;
 	*y = get_unaligned_be16(touchdata + 1 + (finger * 5) + 2);
 	*z = touchdata[1 + (finger * 5) + 4];
-	
+
 	return true;
 }
 
@@ -451,7 +451,7 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 	input->id.bustype = BUS_I2C;
 
 	/* Get panel data @deepak pansari*/
-	u16 resx, resy;
+	u16 resx=9600, resy=9600;
 	u32 resx_dt, resy_dt;
 	u8 rs[10];
 
