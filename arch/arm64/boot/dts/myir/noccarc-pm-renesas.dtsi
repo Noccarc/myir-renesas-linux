@@ -190,6 +190,8 @@
 		default-state = "on";
 		linux,default-trigger = "heartbeat";
 	};
+
+
         gpio1 {
 			gpios = <&pinctrl RZG2L_GPIO(27, 1) GPIO_ACTIVE_HIGH>; //22
 			label = "mcu_pwr_rst";
