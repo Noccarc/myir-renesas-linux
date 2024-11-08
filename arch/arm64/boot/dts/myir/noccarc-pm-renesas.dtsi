@@ -234,12 +234,6 @@
 			default-state = "off";
 			linux,default-trigger = "none";
 		};
-        gpio8 {
-			gpios = <&pinctrl RZG2L_GPIO(44, 1) GPIO_ACTIVE_HIGH>;  //116
-			label = "audio_enable";
-			default-state = "on";
-			linux,default-trigger = "none";
-		};
         gpio9 {
 			gpios = <&pinctrl RZG2L_GPIO(47, 0) GPIO_ACTIVE_HIGH>;  //113
 			label = "mcu_sens_rst";
