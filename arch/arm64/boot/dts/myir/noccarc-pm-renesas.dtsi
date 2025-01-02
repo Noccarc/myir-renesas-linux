@@ -253,6 +253,13 @@
 			default-state = "on";
 			linux,default-trigger = "none";
 		};
+
+		gpio12 {
+			gpios = <&pinctrl RZG2L_GPIO(35, 0) GPIO_ACTIVE_HIGH>;  //34
+			label = "lte_enable";
+			default-state = "on";
+			linux,default-trigger = "none";
+		};
 	};
 
 	user-button {
@@ -680,8 +687,8 @@
                 compatible = "ilitek,ili251x";
                 reg = <0x41>;
                 interrupt-parent = <&pinctrl>;
-				//touchscreen-inverted-x;
-		 		//touchscreen-inverted-y;
+				touchscreen-inverted-x;
+		 		touchscreen-inverted-y;
 				touchscreen-size-x = <1280>;
 				touchscreen-size-y = <800>;
                 interrupts = <RZG2L_GPIO(46, 2) IRQ_TYPE_EDGE_FALLING>;
