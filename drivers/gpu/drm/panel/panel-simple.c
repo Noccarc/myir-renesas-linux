@@ -964,15 +964,15 @@ static const struct panel_desc auo_g070vvn01 = {
 };
 
 static const struct drm_display_mode auo_g101evn010_mode = {
-	.clock = 72000,
+	.clock = 72000,							//This is the pixel clock in kHz, which determines how fast pixels are transmitted. In this case, it's set to 72,000 kHz (or 72 MHz).
 	.hdisplay = 1280,
-	.hsync_start = 1280 + 82,
-	.hsync_end = 1280 + 82 + 12,
-	.htotal = 1280 + 82 + 12 + 84,
-	.vdisplay = 800,
-	.vsync_start = 800 + 18,
-	.vsync_end = 800 + 18 + 12,
-	.vtotal = 800 + 18 + 12 + 16,
+	.hsync_start = 1280 + 80,                //The start of the horizontal sync pulse. This is the point when the horizontal sync signal starts, and it happens 82 pixels after the active display area (1280 + 82 = 1362 pixels).
+	.hsync_end = 1280 + 80 + 12,			//The end of the horizontal sync pulse, 12 pixels after the start (1362 + 12 = 1374 pixels).
+	.htotal = 1280 + 80 +1+ 80,         //The total number of horizontal pixels, including the visible area and the sync periods. This is the sum of the active display pixels, front porch (82), sync pulse (12), and back porch (84). So, htotal = 1280 + 82 + 12 + 84 = 1458 pixels
+	.vdisplay = 800,						
+	.vsync_start = 800 + 18,               //The start of the vertical sync pulse. This occurs 18 lines after the active display area (800 + 18 = 818 pixels)
+	.vsync_end = 800 + 18 + 14,				//The end of the vertical sync pulse, 12 lines after the start (818 + 12 = 830 pixels).
+	.vtotal = 800 + 18 + 14 + 16,          // The total number of vertical lines, including the visible area and the sync periods. This is the sum of the active display lines, front porch (18), sync pulse (12), and back porch (16). So, vtotal = 800 + 18 + 12 + 16 = 846 lines 
 };
 
 static const struct panel_desc auo_g101evn010 = {

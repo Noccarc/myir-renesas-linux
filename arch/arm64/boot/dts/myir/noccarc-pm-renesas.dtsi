@@ -693,7 +693,7 @@
 				touchscreen-size-y = <800>;
                 interrupts = <RZG2L_GPIO(46, 2) IRQ_TYPE_EDGE_FALLING>;
                 reset-gpios = <&pinctrl RZG2L_GPIO(46, 3) GPIO_ACTIVE_LOW>;
-				max-fingers = <10>;
+				max-fingers = <1>;
         };
 
     // ft5x06: ft5x06@38 {
