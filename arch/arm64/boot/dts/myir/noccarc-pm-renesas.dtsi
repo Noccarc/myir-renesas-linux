@@ -330,7 +330,7 @@
     };
 
 	panel {
-			compatible = "auo,g101evn010";
+			compatible = "boe,ev121wxm-n12";
 			//compatible = "auo,b101aw03";
 			backlight = <&panel_backlight>;
 			enable-gpios = <&pinctrl RZG2L_GPIO(36, 0) GPIO_ACTIVE_HIGH>;

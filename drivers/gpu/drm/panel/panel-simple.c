@@ -963,25 +963,30 @@ static const struct panel_desc auo_g070vvn01 = {
 	},
 };
 
-static const struct drm_display_mode auo_g101evn010_mode = {
-	.clock = 72000,							//This is the pixel clock in kHz, which determines how fast pixels are transmitted. In this case, it's set to 72,000 kHz (or 72 MHz).
+static const struct drm_display_mode boe_ev121wxmn12_mode = {
+	.clock = 72000,
 	.hdisplay = 1280,
-	.hsync_start = 1280 + 80,                //The start of the horizontal sync pulse. This is the point when the horizontal sync signal starts, and it happens 82 pixels after the active display area (1280 + 82 = 1362 pixels).
-	.hsync_end = 1280 + 80 + 12,			//The end of the horizontal sync pulse, 12 pixels after the start (1362 + 12 = 1374 pixels).
-	.htotal = 1280 + 80 +1+ 80,         //The total number of horizontal pixels, including the visible area and the sync periods. This is the sum of the active display pixels, front porch (82), sync pulse (12), and back porch (84). So, htotal = 1280 + 82 + 12 + 84 = 1458 pixels
-	.vdisplay = 800,						
-	.vsync_start = 800 + 18,               //The start of the vertical sync pulse. This occurs 18 lines after the active display area (800 + 18 = 818 pixels)
-	.vsync_end = 800 + 18 + 14,				//The end of the vertical sync pulse, 12 lines after the start (818 + 12 = 830 pixels).
-	.vtotal = 800 + 18 + 14 + 16,          // The total number of vertical lines, including the visible area and the sync periods. This is the sum of the active display lines, front porch (18), sync pulse (12), and back porch (16). So, vtotal = 800 + 18 + 12 + 16 = 846 lines 
+	.hsync_start = 1280 + 80,
+	.hsync_end = 1280 + 80 + 10,
+	.htotal = 1280 + 80 + 10 + 80,
+	.vdisplay = 800,
+	.vsync_start = 800 + 14,
+	.vsync_end = 800 + 14 + 15,
+	.vtotal = 800 + 14 + 15 + 9,  
 };
 
-static const struct panel_desc auo_g101evn010 = {
-	.modes = &auo_g101evn010_mode,
+static const struct panel_desc boe_ev121wxmn12 = {
+	.modes = &boe_ev121wxmn12_mode,
 	.num_modes = 1,
 	.bpc = 8,
 	.size = {
-		.width = 216,
-		.height = 135,
+		.width = 261,
+		.height = 163,
+	},
+	.delay = {
+		.prepare = 210,
+		.enable = 50,
+		.unprepare = 160,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA,
 	.connector_type = DRM_MODE_CONNECTOR_LVDS,
@@ -3968,9 +3973,6 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "auo,g070vvn01",
 		.data = &auo_g070vvn01,
 	}, {
-		.compatible = "auo,g101evn010",
-		.data = &auo_g101evn010,
-	}, {
 		.compatible = "auo,g104sn02",
 		.data = &auo_g104sn02,
 	}, {
@@ -4001,8 +4003,11 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "bananapi,s070wv20-ct16",
 		.data = &bananapi_s070wv20_ct16,
 	}, {
+		.compatible = "boe,ev121wxm-n12",
+		.data = &boe_ev121wxmn12,
+	},{
 		.compatible = "boe,hv070wsa-100",
-		.data = &boe_hv070wsa
+		.data = &boe_hv070wsa,
 	}, {
 		.compatible = "boe,nv101wxmn51",
 		.data = &boe_nv101wxmn51,
